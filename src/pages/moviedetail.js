@@ -1,5 +1,4 @@
-<link rel="stylesheet" href="style.css">
-<!DOCTYPE html>
+<link rel="stylesheet">
 <html>
 <head>
     <title>Movie Detail</title>
