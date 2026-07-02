@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from "./header/header.jsx";
 import { api } from "../lib/api";
@@ -19,8 +19,12 @@ function Seating() {
 	const [loading, setLoading] = useState(true);
 	const [locking, setLocking] = useState(false);
 	const [error, setError] = useState("");
+	const hasFetched = useRef(false);
 
 	useEffect(() => {
+		if (hasFetched.current) return;
+		hasFetched.current = true;
+
 		const loadSeats = async () => {
 			setLoading(true);
 			try {

@@ -1,38 +1,7 @@
 import { useEffect, useState } from "react";
 import Header from "./header/header.jsx";
 import { api } from "../lib/api";
-
-function formatIDR(amount) {
-	return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount || 0);
-}
-
-// Simple SVG QR code visualizer based on hash code token
-function QRCodeSVG({ token }) {
-	if (!token) return null;
-	// Generate deterministic 5x5 pattern from token string
-	let hash = 0;
-	for (let i = 0; i < token.length; i++) {
-		hash = ((hash << 5) - hash) + token.charCodeAt(i);
-		hash |= 0;
-	}
-
-	const cells = [];
-	for (let r = 0; r < 5; r++) {
-		for (let c = 0; c < 5; c++) {
-			const bit = ((hash >> ((r * 5 + c) % 30)) & 1) === 1;
-			if (bit || (r === 0 && c === 0) || (r === 0 && c === 4) || (r === 4 && c === 0)) {
-				cells.push(<rect key={`${r}-${c}`} x={c * 18 + 5} y={r * 18 + 5} width="16" height="16" fill="#000" rx="2" />);
-			}
-		}
-	}
-
-	return (
-		<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-			<rect width="100" height="100" fill="#fff" rx="8" />
-			{cells}
-		</svg>
-	);
-}
+import { QRCodeSVG } from "qrcode.react";
 
 function TicketList() {
 	const [tickets, setTickets] = useState([]);
@@ -86,7 +55,14 @@ function TicketList() {
 
 								<div style={{ textAlign: "center" }}>
 									<div className="ticket-qr">
-										<QRCodeSVG token={t.qr_token || String(t.id)} />
+										<QRCodeSVG
+											value={t.qr_token || `CTX-${t.id}`}
+											size={120}
+											bgColor="#ffffff"
+											fgColor="#000000"
+											level="M"
+											includeMargin={true}
+										/>
 									</div>
 									<div className="muted" style={{ fontSize: "0.6875rem", marginTop: "4px" }}>Scan at Gate</div>
 								</div>

@@ -12,8 +12,9 @@ function Account() {
 		const loadProfile = async () => {
 			try {
 				const data = await api.get("/me");
-				setUser(data);
-				localStorage.setItem("cinetix_user", JSON.stringify(data));
+				const userData = data.user || data;
+				setUser(userData);
+				localStorage.setItem("cinetix_user", JSON.stringify(userData));
 			} finally {
 				setLoading(false);
 			}
@@ -43,7 +44,7 @@ function Account() {
 						<div className="account-details">
 							<h1>{user.name}</h1>
 							<div className="email">{user.email}</div>
-							<span className={`role-badge role-${user.role || "Customer"}`}>
+							<span className={`role-badge role-${(user.role || "Customer").toLowerCase()}`}>
 								Role: {user.role || "Customer"}
 							</span>
 						</div>

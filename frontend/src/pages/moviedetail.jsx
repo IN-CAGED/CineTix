@@ -17,30 +17,32 @@ function MovieDetail() {
 	useEffect(() => {
 		const loadDetail = async () => {
 			if (!movie?.id) return;
+			let hasSchedules = false;
 			try {
 				const data = await api.get(`/movies/${movie.id}`);
 				setMovie(data);
-				if (data.schedules) {
+				if (data.schedules && data.schedules.length > 0) {
 					setSchedules(data.schedules);
+					hasSchedules = true;
 				}
 			} finally {
 				setLoading(false);
 			}
-		};
 
-		const loadSchedules = async () => {
-			try {
-				const allScheds = await api.get("/schedules");
-				if (Array.isArray(allScheds) && movie?.id) {
-					setSchedules(allScheds.filter((s) => s.movie_id === movie.id));
+			// Only fetch schedules separately if movie detail didn't include them
+			if (!hasSchedules) {
+				try {
+					const allScheds = await api.get("/schedules");
+					if (Array.isArray(allScheds)) {
+						setSchedules(allScheds.filter((s) => s.movie_id === movie.id));
+					}
+				} catch {
+					// ignore
 				}
-			} catch {
-				// ignore
 			}
 		};
 
 		loadDetail();
-		loadSchedules();
 	}, [movie?.id]);
 
 	if (!movie && !loading) {

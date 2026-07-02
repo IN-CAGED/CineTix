@@ -35,6 +35,7 @@ export async function request(path, options = {}) {
 		if (window.location.pathname !== "/login" && window.location.pathname !== "/register") {
 			window.location.href = "/login";
 		}
+		throw new Error("Session expired. Please log in again.");
 	}
 
 	const contentType = response.headers.get("content-type") || "";
