@@ -105,7 +105,7 @@ function TicketList() {
 						{pendingTx.length > 0 && (
 							<section>
 								<h2 style={{ fontSize: "1.15rem", marginBottom: "14px", color: "var(--warning)", display: "flex", alignItems: "center", gap: "8px" }}>
-									<span>⏳ Awaiting Payment ({pendingTx.length})</span>
+									<span>Awaiting Payment ({pendingTx.length})</span>
 								</h2>
 								<div className="ticket-grid">
 									{pendingTx.map((tx) => {
@@ -167,7 +167,7 @@ function TicketList() {
 							<section>
 								{pendingTx.length > 0 && (
 									<h2 style={{ fontSize: "1.15rem", marginBottom: "14px", color: "var(--success)" }}>
-										🎟️ Verified E-Tickets ({tickets.length})
+										Verified E-Tickets ({tickets.length})
 									</h2>
 								)}
 								<div className="ticket-grid">
