@@ -176,6 +176,51 @@ class BookingController extends Controller
 	}
 
 	/**
+	 * Get all active pending transactions for the authenticated user.
+	 */
+	public function myPending(Request $request): JsonResponse
+	{
+		// Clean up expired transactions and tickets for this user
+		$expiredIds = Transaction::where('user_id', $request->user()->id)
+			->where('payment_status', 'Pending')
+			->where('expires_at', '<=', now())
+			->pluck('id');
+
+		if ($expiredIds->isNotEmpty()) {
+			Transaction::whereIn('id', $expiredIds)->update(['payment_status' => 'Expired']);
+			Ticket::whereIn('transaction_id', $expiredIds)->where('status', 'Locked')->update(['status' => 'Cancelled']);
+		}
+
+		$pending = Transaction::where('user_id', $request->user()->id)
+			->where('payment_status', 'Pending')
+			->where('expires_at', '>', now())
+			->with(['schedule.movie', 'schedule.studio', 'tickets.seat'])
+			->latest('id')
+			->get();
+
+		return response()->json($pending);
+	}
+
+	/**
+	 * Cancel a pending transaction and release locked seats immediately.
+	 */
+	public function cancelBooking(Request $request, string $id): JsonResponse
+	{
+		$transaction = Transaction::where('id', $id)
+			->where('user_id', $request->user()->id)
+			->where('payment_status', 'Pending')
+			->firstOrFail();
+
+		$transaction->update(['payment_status' => 'Expired']);
+		Ticket::where('transaction_id', $transaction->id)
+			->where('status', 'Locked')
+			->update(['status' => 'Cancelled']);
+
+		return response()->json(['message' => 'Booking cancelled and seats released.']);
+	}
+
+
+	/**
 	 * Validate a ticket by QR token (for Cashier use).
 	 */
 	public function validateTicket(Request $request): JsonResponse

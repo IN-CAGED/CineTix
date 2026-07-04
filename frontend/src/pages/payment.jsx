@@ -10,7 +10,13 @@ function formatIDR(amount) {
 function Payment() {
 	const location = useLocation();
 	const navigate = useNavigate();
-	const { transaction, expires_at, selectedSeats, schedule } = location.state || {};
+	const stateData = location.state || {};
+
+	const [tx, setTx] = useState(stateData.transaction || null);
+	const [expiresAt, setExpiresAt] = useState(stateData.expires_at || null);
+	const [selectedSeats, setSelectedSeats] = useState(stateData.selectedSeats || []);
+	const [schedule, setSchedule] = useState(stateData.schedule || null);
+	const [loadingRestored, setLoadingRestored] = useState(!stateData.transaction);
 
 	const [method, setMethod] = useState("card");
 	const [timeLeft, setTimeLeft] = useState(300); // 5 minutes default
@@ -18,10 +24,31 @@ function Payment() {
 	const [error, setError] = useState("");
 
 	useEffect(() => {
-		if (!expires_at) return;
+		if (tx) return;
+		const restorePending = async () => {
+			try {
+				const pending = await api.get("/bookings/my-pending");
+				if (Array.isArray(pending) && pending.length > 0) {
+					const active = pending[0];
+					setTx(active);
+					setExpiresAt(active.expires_at);
+					setSelectedSeats(active.tickets?.map((t) => t.seat).filter(Boolean) || []);
+					setSchedule(active.schedule || null);
+				}
+			} catch (e) {
+				console.error("Failed restoring pending tx:", e);
+			} finally {
+				setLoadingRestored(false);
+			}
+		};
+		restorePending();
+	}, [tx]);
+
+	useEffect(() => {
+		if (!expiresAt) return;
 
 		const updateTimer = () => {
-			const target = new Date(expires_at).getTime();
+			const target = new Date(expiresAt).getTime();
 			const now = new Date().getTime();
 			const diff = Math.max(0, Math.floor((target - now) / 1000));
 			setTimeLeft(diff);
@@ -35,14 +62,30 @@ function Payment() {
 		updateTimer();
 		const interval = setInterval(updateTimer, 1000);
 		return () => clearInterval(interval);
-	}, [expires_at, navigate]);
+	}, [expiresAt, navigate]);
 
-	if (!transaction) {
+	if (loadingRestored) {
 		return (
 			<>
 				<Header />
 				<main className="page">
-					<div className="empty-state">No pending transaction found. Please start by selecting your seats.</div>
+					<div className="loading-center"><div className="spinner" /></div>
+				</main>
+			</>
+		);
+	}
+
+	if (!tx) {
+		return (
+			<>
+				<Header />
+				<main className="page">
+					<div className="empty-state" style={{ padding: "64px 20px" }}>
+						<p style={{ marginBottom: "16px" }}>No active pending transaction found.</p>
+						<button type="button" className="btn btn-primary" onClick={() => navigate("/movies")}>
+							Browse Movies & Book Seats
+						</button>
+					</div>
 				</main>
 			</>
 		);
@@ -57,7 +100,7 @@ function Payment() {
 
 		try {
 			await api.post("/bookings/confirm-payment", {
-				transaction_id: transaction.id,
+				transaction_id: tx.id,
 				payment_method: method,
 			});
 
@@ -138,7 +181,7 @@ function Payment() {
 								disabled={submitting || timeLeft === 0}
 								onClick={handleConfirm}
 							>
-								{submitting ? "Processing Transaction..." : `Pay Now ${formatIDR(transaction.total_amount)}`}
+								{submitting ? "Processing Transaction..." : `Pay Now ${formatIDR(tx.total_amount)}`}
 							</button>
 						</div>
 					</div>
@@ -169,7 +212,7 @@ function Payment() {
 						</div>
 						<div className="summary-row total">
 							<span>Total Tagihan</span>
-							<span className="value">{formatIDR(transaction.total_amount)}</span>
+							<span className="value">{formatIDR(tx.total_amount)}</span>
 						</div>
 					</div>
 				</div>

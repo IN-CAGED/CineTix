@@ -33,6 +33,8 @@ Route::middleware('auth:sanctum')->group(function () {
 	Route::post('/bookings/lock-seats', [BookingController::class, 'lockSeats']);
 	Route::post('/bookings/confirm-payment', [BookingController::class, 'confirmPayment']);
 	Route::get('/bookings/my-tickets', [BookingController::class, 'myTickets']);
+	Route::get('/bookings/my-pending', [BookingController::class, 'myPending']);
+	Route::post('/bookings/cancel/{id}', [BookingController::class, 'cancelBooking']);
 });
 
 // Cashier routes
