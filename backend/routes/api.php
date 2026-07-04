@@ -42,6 +42,7 @@ Route::middleware(['auth:sanctum', 'role:Admin,Cashier'])->group(function () {
 
 // Admin routes
 Route::middleware(['auth:sanctum', 'role:Admin,Cashier'])->group(function () {
+	Route::post('/movies/upload-poster', [MovieController::class, 'uploadPoster']);
 	Route::apiResource('movies', MovieController::class)->except(['index', 'show']);
 	Route::apiResource('studios', StudioController::class);
 	Route::apiResource('seats', SeatController::class);

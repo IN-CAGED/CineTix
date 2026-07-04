@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { api } from "../../lib/api";
 
 function AdminMovies() {
@@ -7,6 +7,10 @@ function AdminMovies() {
 	const [modalOpen, setModalOpen] = useState(false);
 	const [form, setForm] = useState({ title: "", genre: "", duration_minutes: 120, age_rating: "PG-13", synopsis: "", poster_url: "", status: "now_showing" });
 	const [editingId, setEditingId] = useState(null);
+	const [posterFile, setPosterFile] = useState(null);
+	const [posterPreview, setPosterPreview] = useState("");
+	const [uploading, setUploading] = useState(false);
+	const fileInputRef = useRef(null);
 
 	const loadMovies = async () => {
 		setLoading(true);
@@ -24,28 +28,83 @@ function AdminMovies() {
 
 	const openCreate = () => {
 		setEditingId(null);
-		setForm({ title: "", genre: "Action", duration_minutes: 120, age_rating: "PG-13", synopsis: "", poster_url: "https://placehold.co/400x600/d35400/ffffff?text=New+Movie", status: "now_showing" });
+		setForm({ title: "", genre: "Action", duration_minutes: 120, age_rating: "PG-13", synopsis: "", poster_url: "", status: "now_showing" });
+		setPosterFile(null);
+		setPosterPreview("");
 		setModalOpen(true);
 	};
 
 	const openEdit = (m) => {
 		setEditingId(m.id);
 		setForm({ title: m.title, genre: m.genre, duration_minutes: m.duration_minutes, age_rating: m.age_rating, synopsis: m.synopsis || "", poster_url: m.poster_url || "", status: m.status || "now_showing" });
+		setPosterFile(null);
+		setPosterPreview(m.poster_url || "");
 		setModalOpen(true);
+	};
+
+	const handleFileSelect = (file) => {
+		if (!file) return;
+		if (!file.type.startsWith("image/")) {
+			alert("Please select an image file (JPEG, PNG, WebP, GIF).");
+			return;
+		}
+		if (file.size > 5 * 1024 * 1024) {
+			alert("File size must not exceed 5MB.");
+			return;
+		}
+		setPosterFile(file);
+		const reader = new FileReader();
+		reader.onload = (e) => setPosterPreview(e.target.result);
+		reader.readAsDataURL(file);
+	};
+
+	const handleDrop = (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		e.currentTarget.classList.remove("upload-zone--dragover");
+		const file = e.dataTransfer.files?.[0];
+		handleFileSelect(file);
+	};
+
+	const handleDragOver = (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		e.currentTarget.classList.add("upload-zone--dragover");
+	};
+
+	const handleDragLeave = (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		e.currentTarget.classList.remove("upload-zone--dragover");
 	};
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
+		setUploading(true);
 		try {
+			let finalPosterUrl = form.poster_url;
+
+			// If a file was selected, upload it first
+			if (posterFile) {
+				const formData = new FormData();
+				formData.append("poster", posterFile);
+				const uploadResult = await api.upload("/movies/upload-poster", formData);
+				finalPosterUrl = uploadResult.url;
+			}
+
+			const payload = { ...form, poster_url: finalPosterUrl };
+
 			if (editingId) {
-				await api.put(`/movies/${editingId}`, form);
+				await api.put(`/movies/${editingId}`, payload);
 			} else {
-				await api.post("/movies", form);
+				await api.post("/movies", payload);
 			}
 			setModalOpen(false);
 			loadMovies();
 		} catch (err) {
 			alert(err.message || "Failed to save movie.");
+		} finally {
+			setUploading(false);
 		}
 	};
 
@@ -57,6 +116,13 @@ function AdminMovies() {
 		} catch (err) {
 			alert(err.message || "Delete failed.");
 		}
+	};
+
+	const removePoster = () => {
+		setPosterFile(null);
+		setPosterPreview("");
+		setForm({ ...form, poster_url: "" });
+		if (fileInputRef.current) fileInputRef.current.value = "";
 	};
 
 	return (
@@ -134,11 +200,73 @@ function AdminMovies() {
 									</select>
 								</div>
 							</div>
-							<div className="field"><span>Poster Image URL</span><input value={form.poster_url} onChange={(e) => setForm({ ...form, poster_url: e.target.value })} /></div>
+
+							{/* Poster Upload Zone */}
+							<div className="field">
+								<span>Poster Image</span>
+								{posterPreview ? (
+									<div className="upload-preview">
+										<img src={posterPreview} alt="Poster preview" />
+										<div className="upload-preview-actions">
+											<button type="button" className="btn btn-secondary btn-sm" onClick={() => fileInputRef.current?.click()}>
+												Change Image
+											</button>
+											<button type="button" className="btn btn-danger btn-sm" onClick={removePoster}>
+												Remove
+											</button>
+										</div>
+									</div>
+								) : (
+									<div
+										className="upload-zone"
+										onClick={() => fileInputRef.current?.click()}
+										onDrop={handleDrop}
+										onDragOver={handleDragOver}
+										onDragLeave={handleDragLeave}
+									>
+										<div className="upload-zone-icon">
+											<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+												<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+												<polyline points="17 8 12 3 7 8" />
+												<line x1="12" y1="3" x2="12" y2="15" />
+											</svg>
+										</div>
+										<div className="upload-zone-text">
+											<span className="upload-zone-primary">Click to upload or drag & drop</span>
+											<span className="upload-zone-hint">JPEG, PNG, WebP, GIF · Max 5 MB</span>
+										</div>
+									</div>
+								)}
+								<input
+									ref={fileInputRef}
+									type="file"
+									accept="image/jpeg,image/png,image/webp,image/gif"
+									style={{ display: "none" }}
+									onChange={(e) => handleFileSelect(e.target.files?.[0])}
+								/>
+							</div>
+
+							{/* Fallback manual URL */}
+							{!posterFile && !posterPreview && (
+								<div className="field">
+									<span className="muted" style={{ fontSize: "0.75rem" }}>Or paste image URL manually</span>
+									<input
+										placeholder="https://example.com/poster.jpg"
+										value={form.poster_url}
+										onChange={(e) => {
+											setForm({ ...form, poster_url: e.target.value });
+											if (e.target.value) setPosterPreview(e.target.value);
+										}}
+									/>
+								</div>
+							)}
+
 							<div className="field"><span>Synopsis</span><textarea value={form.synopsis} onChange={(e) => setForm({ ...form, synopsis: e.target.value })} /></div>
 							<div className="modal-footer">
 								<button type="button" className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>
-								<button type="submit" className="btn btn-primary">Save Movie</button>
+								<button type="submit" className="btn btn-primary" disabled={uploading}>
+									{uploading ? "Uploading..." : "Save Movie"}
+								</button>
 							</div>
 						</form>
 					</div>
